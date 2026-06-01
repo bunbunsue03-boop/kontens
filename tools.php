@@ -505,40 +505,46 @@ TEMPLATE_AMP;
     // Buat Sitemap
     if (!empty($createdFolders)) {
         $sitemapContent = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
-        $sitemapContent .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
-        foreach ($createdFolders as $folder) {
-            $sitemapContent .= '<url>' . PHP_EOL;
-            $sitemapContent .= '<loc>' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . $folder . '/') . '</loc>' . PHP_EOL;
-            $sitemapContent .= '<lastmod>' . date('Y-m-d') . '</lastmod>' . PHP_EOL;
-            $sitemapContent .= '<changefreq>daily</changefreq>' . PHP_EOL;
-            $sitemapContent .= '<priority>0.8</priority>' . PHP_EOL;
-            $sitemapContent .= '</url>' . PHP_EOL;
-        }
-        $sitemapContent .= '</urlset>' . PHP_EOL;
-
-        $zipAmp->addFromString('sitemap.xml', $sitemapContent);
-        $zipAsli->addFromString('sitemap.xml', $sitemapContent);
+$sitemapContent .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+    foreach ($createdFolders as $folder) {
+    $sitemapContent .= '<url>' . PHP_EOL;
+        $sitemapContent .= '<loc>' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . $folder . '/') . '</loc>' . PHP_EOL;
+        $sitemapContent .= '<lastmod>' . date('Y-m-d') . '</lastmod>' . PHP_EOL;
+        $sitemapContent .= '<changefreq>daily</changefreq>' . PHP_EOL;
+        $sitemapContent .= '<priority>0.8</priority>' . PHP_EOL;
+        $sitemapContent .= '</url>' . PHP_EOL;
     }
+    $sitemapContent .= '</urlset>' . PHP_EOL;
 
-    $zipAmp->close();
-    $zipAsli->close();
+$zipAmp->addFromString('sitemap.xml', $sitemapContent);
+$zipAsli->addFromString('sitemap.xml', $sitemapContent);
+}
 
-    // Check apakah dir.txt baru saja dibuat
-    $dirTxtJustCreated = (!empty($manualDirInput) && !empty($targetDirs) && $targetDirs !== ['main']);
+$zipAmp->close();
+$zipAsli->close();
 
-    // Tampilkan hasil sukses
-    echo '<div style="font-family:sans-serif; padding:20px; max-width:900px; margin:auto; border:2px solid #28a745; border-radius:5px; background:#fff; margin-top:20px;">';
+// Check apakah dir.txt baru saja dibuat
+$dirTxtJustCreated = (!empty($manualDirInput) && !empty($targetDirs) && $targetDirs !== ['main']);
+
+// Tampilkan hasil sukses
+echo '<div
+    style="font-family:sans-serif; padding:20px; max-width:900px; margin:auto; border:2px solid #28a745; border-radius:5px; background:#fff; margin-top:20px;">
+    ';
     echo '<h2 style="color:#28a745; margin-top:0;">✅ Proses Sinkronisasi Terpadu Sukses!</h2>';
     echo '<h3>📊 Hasil Pemrosesan:</h3>';
     echo '<ul style="line-height:1.8;">';
-    echo '<li><b>TAR Generator:</b> ' . count($createdFolders) . ' folder berhasil dibuat</li>';
-    echo '<li><b>Status Folder Fisik:</b> ' . ($extractFisik ? '<span style="color:green;">Publikasi ke hosting aktif</span>' : '<span style="color:blue;">Hemat memori (TAR only)</span>') . '</li>';
-    if ($dirTxtJustCreated) {
-        echo '<li><b>File dir.txt:</b> <span style="color:green;">💾 Otomatis dibuat dari input manual (untuk next time)</span></li>';
-    }
-    echo '<li><b>File Asli:</b> <a href="/amp/domain-asli.zip" style="color:#007bff;">📥 Download domain-asli.zip</a></li>';
-    echo '<li><b>File AMP:</b> <a href="/amp/domain-amp.zip" style="color:#007bff;">📥 Download domain-amp.zip</a></li>';
-    echo '</ul>';
+        echo '<li><b>TAR Generator:</b> ' . count($createdFolders) . ' folder berhasil dibuat</li>';
+        echo '<li><b>Status Folder Fisik:</b> ' . ($extractFisik ? '<span style="color:green;">Publikasi ke hosting
+                aktif</span>' : '<span style="color:blue;">Hemat memori (TAR only)</span>') . '</li>';
+        if ($dirTxtJustCreated) {
+        echo '<li><b>File dir.txt:</b> <span style="color:green;">💾 Otomatis dibuat dari input manual (untuk next
+                time)</span></li>';
+        }
+        echo '<li><b>File Asli:</b> <a href="/amp/domain-asli.zip" style="color:#007bff;">📥 Download
+                domain-asli.zip</a></li>';
+        echo '<li><b>File AMP:</b> <a href="/amp/domain-amp.zip" style="color:#007bff;">📥 Download domain-amp.zip</a>
+        </li>';
+        echo '</ul>';
     echo '</div>';
 }
 
