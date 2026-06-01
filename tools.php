@@ -95,8 +95,8 @@ $googleFileName = 'googleda821ee12a4cecfe.html';
 $googleContent  = 'google-site-verification: googleda821ee12a4cecfe.html';
 
 // File output TAR
-$tarNameAmp  = $root . '/amp/domain-amp.tar.gz';
-$tarNameAsli = $root . '/amp/domain-asli.tar.gz';
+$tarNameAmp  = $root . '/amp/' . $host . '-amp.zip';
+$tarNameAsli = $root . '/amp/' . $host . '-konten.zip';
 
 // Flag Pemrosesan
 $extractFisik = (isset($_POST['extract_physical']) && $_POST['extract_physical'] == '1');
@@ -405,7 +405,8 @@ if ($isProcessed) {
         die('<div style="color:red; font-family:sans-serif; padding:20px; max-width:900px; margin:auto;">Ekstensi ZipArchive tidak tersedia. Aktifkan ekstensi zip di PHP.</div>');
     }
 
-    // Buat folder amp jika belum adaif (!is_dir($root . '/amp')) {
+    // Buat folder amp jika belum ada
+    if (!is_dir($root . '/amp')) {
         @mkdir($root . '/amp', 0755, true);
     }
 
@@ -535,8 +536,8 @@ TEMPLATE_AMP;
     if ($dirTxtJustCreated) {
         echo '<li><b>File dir.txt:</b> <span style="color:green;">💾 Otomatis dibuat dari input manual (untuk next time)</span></li>';
     }
-    echo '<li><b>File Asli:</b> <a href="/amp/domain-asli.tar.gz" style="color:#007bff;">📥 Download domain-asli.tar.gz</a></li>';
-    echo '<li><b>File AMP:</b> <a href="/amp/domain-amp.tar.gz" style="color:#007bff;">📥 Download domain-amp.tar.gz</a></li>';
+    echo '<li><b>File Asli:</b> <a href="/amp/domain-asli.zip" style="color:#007bff;">📥 Download domain-asli.zip</a></li>';
+    echo '<li><b>File AMP:</b> <a href="/amp/domain-amp.zip" style="color:#007bff;">📥 Download domain-amp.zip</a></li>';
     echo '</ul>';
     echo '</div>';
 }
