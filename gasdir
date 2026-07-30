@@ -1,0 +1,239 @@
+    <?php
+    /**
+     * SCRIPT FINAL V19: SEPARATE zip GENERATOR (ULTRA-COMPATIBLE)
+     * - 100% Bebas dari Error ZipArchive karena menggunakan format .zip (PharData).
+     * - Menghasilkan 2 berkas kompresi zip terpisah seperti sistem awal (Satu file TAR AMP & Satu file zip Asli).
+     * - Memiliki opsi tombol untuk mengekstrak folder fisik secara nyata ke hosting atau tidak.
+     * - Menggunakan Regex murni yang sangat ringan dan aman dari crash server.
+     */
+
+    @ini_set('display_errors', 1);
+    @ini_set('display_startup_errors', 1);
+    @error_reporting(E_ALL);
+
+    @set_time_limit(600);
+    @ini_set('memory_limit', '512M');
+
+    $dirFile         = 'dir.txt';
+    $listFile        = 'list.txt';
+    $templateFile    = 'template.php';
+    $templateAmpFile = 'template-amp.php';
+
+    // Pengaturan Google Verification (Hanya dimasukkan ke zip Asli)
+    $googleFileName = 'googlefd93273a5a3f577d.html';
+    $googleContent  = 'google-site-verification: googlefd93273a5a3f577d.html';
+
+    $host = $_SERVER['HTTP_HOST'];
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $baseUrl = $protocol . $host;
+
+    $extractFisik = (isset($_POST['extract_physical']) && $_POST['extract_physical'] == '1');
+    $isProcessed  = (isset($_POST['submit_proses']));
+
+    function dapatkanDaftarDirektori($url, $dirFile) {
+        $cleanDirs = [];
+        $blacklist = ['wp-admin', 'wp-content', 'wp-includes', 'category', 'tag', 'author', 'search', 'home', 'login', 'register'];
+
+        if (file_exists($dirFile)) {
+            $rawLines = file($dirFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($rawLines as $line) {
+                $href = trim(preg_replace('/[\x00-\x1F\x7F-\x9F\xA0]/u', '', $line));
+                if (empty($href)) continue;
+
+                $parsedUrl = parse_url($href);
+                $path = isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : $href;
+                $query = isset($parsedUrl['query']) ? $parsedUrl['query'] : '';
+
+                $slug = '';
+                if (!empty($path)) {
+                    $fileInfo = pathinfo($path);
+                    if (isset($fileInfo['extension']) && in_array(strtolower($fileInfo['extension']), ['php', 'html', 'htm'])) {
+                        $dirPrefix = ($fileInfo['dirname'] !== '.' && !empty($fileInfo['dirname'])) ? $fileInfo['dirname'] . '/' : '';
+                        $slug = $dirPrefix . $fileInfo['filename'];
+                    } else {
+                        $slug = $path;
+                    }
+                }
+
+                if (empty($slug) && !empty($query)) {
+                    parse_str($query, $queryParams);
+                    if (isset($queryParams['']) && !empty($queryParams[''])) {
+                        $slug = $queryParams[''];
+                    } elseif (!empty($queryParams)) {
+                        $firstValue = reset($queryParams);
+                        if (!empty($firstValue) && is_string($firstValue)) {
+                            $slug = $firstValue;
+                        }
+                    }
+                }
+
+                $slug = trim($slug, '/');
+                if (empty($slug)) continue;
+
+                $segments = explode('/', $slug);
+                $isBlacklisted = false;
+                foreach ($segments as $segment) {
+                    if (in_array(strtolower($segment), $blacklist) || strpos($segment, '.') !== false) {
+                        $isBlacklisted = true;
+                        break;
+                    }
+                }
+                if ($isBlacklisted) continue;
+
+                if (preg_match('/^[a-zA-Z0-9_\-\/]+$/', $slug)) {
+                    $cleanDirs[] = strtolower($slug);
+                }
+            }
+            return array_unique($cleanDirs);
+        }
+
+        // Fallback Scrape via Regex jika dir.txt kosong
+        $options = ["http" => ["header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n"]];
+        $context = stream_context_create($options);
+        $html = @file_get_contents($url, false, $context);
+        if ($html) {
+            preg_match_all('/href=["\']([^"\']+)["\']/i', $html, $matches);
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $href) {
+                    $href = trim($href);
+                    if (empty($href) || $href === '#' || strpos($href, 'javascript:') === 0) continue;
+                    $parsedUrl = parse_url($href);
+                    $path = isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : '';
+                    if (empty($path)) continue;
+                    $fileInfo = pathinfo($path);
+                    $slug = (isset($fileInfo['extension']) && in_array(strtolower($fileInfo['extension']), ['php', 'html', 'htm'])) ? (($fileInfo['dirname'] !== '.' && !empty($fileInfo['dirname'])) ? $fileInfo['dirname'] . '/' : '') . $fileInfo['filename'] : $path;
+                    $slug = trim($slug, '/');
+                    if (preg_match('/^[a-zA-Z0-9_\-\/]+$/', $slug)) { $cleanDirs[] = strtolower($slug); }
+                }
+            }
+        }
+        return (!empty($cleanDirs)) ? array_unique($cleanDirs) : ['main'];
+    }
+
+    // ==========================================
+    // TAMPILAN INTERFACE PANEL UTAMA
+    // ==========================================
+    echo "<div style='font-family:sans-serif; padding:20px; max-width:900px; margin:auto; background:#f4f6f9; border-radius:8px; border:1px solid #ddd; margin-bottom:20px;'>";
+    echo "<h2>🛠️ Panel Kendali Sinkronisasi Berkas zip Terpisah (v19)</h2>";
+    echo "<p><b>Mode Kompresi:</b> <span style='color:blue;font-weight:bold;'>Format Kontainer .ZIP (Terpisah: AMP & Asli)</span></p>";
+    echo "<p><b>Sumber Data:</b> " . (file_exists($dirFile) ? "<span style='color:green;font-weight:bold;'>Terdeteksi file dir.txt (".count(file($dirFile))." baris)</span>" : "<span style='color:orange;font-weight:bold;'>Mode Scrape Otomatis Beranda</span>") . "</p>";
+
+    echo "<form method='POST' action=''>";
+    echo "<div style='margin-bottom:15px; padding:10px; background:#fff; border-left:4px solid #007bff;'>";
+    echo "<label style='font-weight:bold; cursor:pointer;'>";
+    echo "<input type='checkbox' name='extract_physical' value='1' " . ($extractFisik ? "checked" : "") . "> ";
+    echo "Centang jika ingin sekalian membuat Folder FISIK Nyata di Hosting lokal ini.";
+    echo "</label>";
+    echo "</div>";
+    echo "<button type='submit' name='submit_proses' value='1' style='background:#007bff; color:#fff; padding:14px 20px; border:none; border-radius:5px; font-weight:bold; cursor:pointer; width:100%; font-size:16px;'>🚀 MULAI PROSES SINKRONISASI & BUAT 2 zip TERPISAH</button>";
+    echo "</form>";
+    echo "</div>";
+
+    // ==========================================
+    // PROSES EKSEKUSI DATA SETELAH KLIK TOMBOL
+    // ==========================================
+    if ($isProcessed) {
+
+        if (!file_exists($listFile) || !file_exists($templateFile) || !file_exists($templateAmpFile)) {
+            die("<div style='color:red; font-family:sans-serif; padding:20px; max-width:900px; margin:auto;'><b>Gagal:</b> Berkas list.txt, template.php, atau template-amp.php tidak lengkap.</div>");
+        }
+
+        $targetDirs  = dapatkanDaftarDirektori($baseUrl, $dirFile);
+        $brands      = file($listFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $template    = file_get_contents($templateFile);
+        $templateAmp = file_get_contents($templateAmpFile);
+
+        // Menentukan nama file arsip kompresi TAR terpisah sesuai sistem awal
+        $zipNameAmp  = 'amp' . $host . '.zip';
+        $zipNameAsli = 'konten' . $host . '.zip';
+
+        try {
+            // Inisialisasi 2 Kontainer TAR Terpisah Menggunakan PharData
+            $zipAmp  = new PharData($zipNameAmp);
+            $zipAsli = new PharData($zipNameAsli);
+            
+            $createdFolders = [];
+            $summaryData = [];
+
+            foreach ($targetDirs as $key => $dirPath) {
+                $dirPath = trim($dirPath, " /");
+                if (empty($dirPath)) continue;
+                
+                $brandName = isset($brands[$key]) ? trim($brands[$key]) : $brands[$key % count($brands)];
+                $brandName = preg_replace('/[\x00-\x1F\x7F-\x9F\xA0]/u', '', $brandName);
+
+                // 1. zip ASLI: Masukkan Konten Utama + Berkas Verifikasi Google
+                $finalContent = str_replace(['{{judul}}', '{{dir}}'], [htmlspecialchars($brandName), $dirPath], $template);
+                $zipAsli->addFromString("$dirPath/index.html", $finalContent);
+                $zipAsli->addFromString("$dirPath/$googleFileName", $googleContent);
+
+                // 2. zip AMP: Masukkan Konten AMP saja (Murni index.html tanpa berkas Google)
+                $finalContentAmp = str_replace(['{{judul}}', '{{dir}}'], [htmlspecialchars($brandName), $dirPath], $templateAmp);
+                $zipAmp->addFromString("$dirPath/index.html", $finalContentAmp);
+
+                // 3. JIKA PILIHAN FOLDER FISIK AKTIF
+                if ($extractFisik) {
+                    if (!is_dir($dirPath)) {
+                        mkdir($dirPath, 0755, true);
+                    }
+                    file_put_contents("$dirPath/index.html", $finalContent);
+                    file_put_contents("$dirPath/$googleFileName", $googleContent);
+                }
+
+                $createdFolders[] = $dirPath;
+                $summaryData[] = [
+                    'url' => "$baseUrl/$dirPath/",
+                    'kw'  => $brandName
+                ];
+            }
+
+            // 4. Membuat & Memasukkan Sitemap.xml ke kedua kontainer zip
+            if (!empty($createdFolders)) {
+                $sitemapContent = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
+                $sitemapContent .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+                foreach ($createdFolders as $folder) {
+                    $sitemapContent .= '  <url>' . PHP_EOL;
+                    $sitemapContent .= '    <loc>' . $baseUrl . '/' . $folder . '/</loc>' . PHP_EOL;
+                    $sitemapContent .= '    <lastmod>' . date('Y-m-d') . '</lastmod>' . PHP_EOL;
+                    $sitemapContent .= '    <changefreq>daily</changefreq>' . PHP_EOL;
+                    $sitemapContent .= '    <priority>0.8</priority>' . PHP_EOL;
+                    $sitemapContent .= '  </url>' . PHP_EOL;
+                }
+                $sitemapContent .= '</urlset>';
+
+                // Tulis sitemap ke root hosting lokal
+                file_put_contents("sitemap.xml", $sitemapContent);
+                
+                // Masukkan sitemap ke dalam arsip zip masing-masing
+                $zipAmp->addFromString("sitemap.xml", $sitemapContent);
+                $zipAsli->addFromString("sitemap.xml", $sitemapContent);
+            }
+
+            // ==========================================
+            // NOTIFIKASI LAPORAN SUKSES
+            // ==========================================
+            echo "<div style='font-family:sans-serif; padding:20px; max-width:900px; margin:auto; border:2px solid #28a745; border-radius:5px; background:#fff; margin-top:20px;'>";
+            echo "<h2 style='color:#28a745; margin-top:0;'>✅ Berkas ZIP Berhasil Dipisahkan!</h2>";
+            echo "<p><b>Total Sukses Ekstraksi:</b> " . count($createdFolders) . " Jalur Rute Halaman</p>";
+            echo "<p><b>Status Penyimpanan Hosting:</b> " . ($extractFisik ? "<span style='color:green;font-weight:bold;'>Folder fisik sukses diterbitkan</span>" : "<span style='color:blue;'>Hemat memori (Hanya dibundel di file ZIP)</span>") . "</p>";
+            echo "<p style='margin-bottom: 25px; margin-top: 15px;'>";
+            echo "<a href='$zipNameAmp' style='background:orange; color:white; padding:12px 18px; text-decoration:none; border-radius:5px; margin-right:10px; font-weight:bold; display:inline-block;'>📥 Download zip AMP (Murni index.html)</a>";
+            echo "<a href='$zipNameAsli' style='background:blue; color:white; padding:12px 18px; text-decoration:none; border-radius:5px; font-weight:bold; display:inline-block;'>📥 Download zip Asli (+ Google File)</a>";
+            echo "</p>";
+
+            echo "<h3>📋 Salin Daftar URL:</h3>";
+            echo "<textarea style='width:100%; height:130px; padding:10px; font-family:monospace;'>";
+            foreach($summaryData as $item) { echo $item['url'] . "\n"; }
+            echo "</textarea>";
+
+            echo "<h3>📋 Salin Daftar Keyword:</h3>";
+            echo "<textarea style='width:100%; height:130px; padding:10px; font-family:monospace;'>";
+            foreach($summaryData as $item) { echo $item['kw'] . "\n"; }
+            echo "</textarea>";
+            echo "</div>";
+
+        } catch (Exception $e) {
+            die("<div style='color:red; font-family:sans-serif; padding:20px; max-width:900px; margin:auto;'><b>Error Kompresi TAR:</b> " . $e->getMessage() . "</div>");
+        }
+    }
+    ?>
